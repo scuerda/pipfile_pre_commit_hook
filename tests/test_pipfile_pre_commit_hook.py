@@ -3,35 +3,75 @@
 """Tests for `pipfile_pre_commit_hook` package."""
 
 import pytest
+from typing import List
 
-from click.testing import CliRunner
+from pipfile_pre_commit_hook.pipfile_pre_commit_hook import check_files
 
-from pipfile_pre_commit_hook import pipfile_pre_commit_hook
-from pipfile_pre_commit_hook import cli
+def make_tmp_files(tmp_path, files) -> List[str]:
+    full_paths = []
+    full_tmp_path = tmp_path
+    for f in files:
+        if '/' in f:
+            parts = f.split('/')
+            f = parts[-1]
+            full_tmp_path = tmp_path
+            for sub_dir in parts[:-1]:
+                full_tmp_path = full_tmp_path / sub_dir
+                if not full_tmp_path.exists():
+                    full_tmp_path.mkdir()
+        p = full_tmp_path / f
+        p.touch()
+        full_paths.append(str(p))
+    return full_paths
 
 
 @pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
+def good_staged_files(tmp_path):
+    staged_files = ['Pipfile', 'Pipfile.lock']
+    return make_tmp_files(tmp_path, staged_files)
 
 
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+@pytest.fixture
+def bad_staged_files(tmp_path):
+    staged_files = ['Pipfile']
+    return make_tmp_files(tmp_path, staged_files)
 
 
-def test_command_line_interface():
-    """Test the CLI."""
-    runner = CliRunner()
-    result = runner.invoke(cli.main)
-    assert result.exit_code == 0
-    assert 'pipfile_pre_commit_hook.cli.main' in result.output
-    help_result = runner.invoke(cli.main, ['--help'])
-    assert help_result.exit_code == 0
-    assert '--help  Show this message and exit.' in help_result.output
+@pytest.fixture
+def staged_files_bad_timestamps(tmp_path):
+    staged_files = ['Pipfile.lock', 'Pipfile']
+    return make_tmp_files(tmp_path, staged_files)
+
+
+@pytest.fixture
+def bad_staged_files_with_subdir(tmp_path):
+    staged_files = ['Pipfile', 'Pipfile.lock', 'subdir/Pipfile']
+    return make_tmp_files(tmp_path, staged_files)
+
+
+@pytest.fixture
+def good_staged_files_with_subdir(tmp_path):
+    staged_files = [
+        'Pipfile', 'Pipfile.lock', 'subdir/Pipfile', 'subdir/Pipfile.lock'
+    ]
+    return make_tmp_files(tmp_path, staged_files)
+
+
+def test_staged_pipfile_without_lock_fails(bad_staged_files):
+    assert check_files(bad_staged_files) == 1
+
+
+def test_staged_pipfile_with_lock_file_succeeds(good_staged_files):
+    assert check_files(good_staged_files) == 0
+
+
+def test_staged_files_with_out_of_date_lock_fails(staged_files_bad_timestamps):
+    assert check_files(staged_files_bad_timestamps) == 1
+
+
+def test_subdir_with_missing_lock_fails(bad_staged_files_with_subdir):
+    assert check_files(bad_staged_files_with_subdir) == 1
+
+
+def test_subdir_with_lock_fails(good_staged_files_with_subdir):
+    assert check_files(good_staged_files_with_subdir) == 0

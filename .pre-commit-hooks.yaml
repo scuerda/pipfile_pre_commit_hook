@@ -1,0 +1,6 @@
+- id: check-pipfile
+  name: check-pipfile
+  description: "Check your pipfiles..."
+  entry: check-pipfile
+  language: python
+  files: '(Pipfile)+'

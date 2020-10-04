@@ -34,7 +34,7 @@ setup(
     description="Pre-commit hook for ensuring your Pipfile.lock files are never out of sync.",
     entry_points={
         'console_scripts': [
-            'pipfile_pre_commit_hook=pipfile_pre_commit_hook.cli:main',
+            'check-pipfile=pipfile_pre_commit_hook.pipfile_pre_commit_hook:main',
         ],
     },
     install_requires=requirements,
